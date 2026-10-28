@@ -1,0 +1,9 @@
+{
+  "id": "claudian-optimizations",
+  "name": "Claudian optimizations + voice",
+  "version": "2.1.0",
+  "minAppVersion": "1.5.0",
+  "description": "Claudian-verbeteringen voor Initiate: echte tabs (titel, kruisje, badges, plus-knop), witte bubbel en invoerveld, neutrale toolbar. Update-proof: past Claudian zelf niet aan. Plus een microfoonknop (⌘D): spraak naar tekst in het chatvak, lokaal via Whisper.",
+  "author": "Diederick",
+  "isDesktopOnly": true
+}

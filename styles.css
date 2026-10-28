@@ -1,0 +1,832 @@
+/* Claudian optimizations (Diederick). Deel 1: bubbel, invoerveld, toolbar. Deel 2: tabs. */
+/* Claudian → Claude Desktop look
+   Sampled from claude.ai (2026-06-12), adapted for Things theme.
+   Retargeted 2026-09-22 for Claudian v2.3.2: de bubbel-achtergrond zit nu
+   op de binnen-laag .claudian-message-content, niet meer op de wrapper.
+   De oude regel op de wrapper gaf een dubbele balk + te weinig contrast. */
+
+/* ── User message bubble: subtle, not dark ──
+   Buitenkant (wrapper) leeg houden, anders krijg je een tweede balk om de bubbel. */
+.claudian-container .claudian-message-user {
+  background: transparent !important;
+}
+
+body.theme-light .claudian-container .claudian-message-user > .claudian-message-content {
+  /* 2026-09-29: wit + zachte rand i.p.v. #ededec, dat verdween tegen de
+     doorschijnende (translucency) grijze macOS-achtergrond. */
+  /* 2026-10-21 (UI 2026, 3C): geen rand, kleine gelaagde schaduw, radius 16 met hoekje 6 */
+  background: #ffffff !important;
+  border: none !important;
+  box-shadow: var(--elev-s) !important;
+  border-radius: 16px !important;
+  border-end-end-radius: 6px !important;
+  padding: 10px 16px !important;
+  color: var(--text-normal) !important;
+  transition: box-shadow 120ms ease;
+}
+/* Hover: rand iets donkerder + schaduw iets dieper, subtiel */
+body.theme-light .claudian-container .claudian-message-user > .claudian-message-content:hover {
+  box-shadow: var(--elev-m) !important;
+}
+
+body.theme-dark .claudian-container .claudian-message-user > .claudian-message-content {
+  background: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Text selection in light mode */
+body.theme-light .claudian-message-user ::selection {
+  background: rgba(0, 0, 0, 0.15);
+  color: inherit;
+}
+
+/* ── Subtle header text, logo keeps its color ── */
+.claudian-container .claudian-title-text {
+  color: var(--text-muted) !important;
+  font-weight: 500;
+}
+
+/* ── Placeholder: much lighter so it doesn't look like typed text ── */
+.claudian-container .claudian-input::placeholder {
+  color: var(--text-faint) !important;
+  opacity: 0.6 !important;
+}
+
+/* ── Toolbar: kill the orange on selectors, keep it neutral ── */
+
+/* Model selector */
+.claudian-container .claudian-model-btn {
+  color: #373734 !important;
+}
+
+.claudian-container .claudian-model-option.selected {
+  color: #373734 !important;
+  background: var(--background-modifier-hover) !important;
+}
+
+/* Effort / thinking selector */
+.claudian-container .claudian-thinking-current {
+  color: var(--text-muted) !important;
+}
+
+.claudian-container .claudian-thinking-gear.selected {
+  color: #373734 !important;
+  background: var(--background-modifier-hover) !important;
+}
+
+/* Context meter */
+.claudian-container .claudian-context-meter-percent {
+  color: var(--text-muted) !important;
+}
+
+.claudian-container .claudian-meter-fill {
+  stroke: var(--text-muted) !important;
+}
+
+/* Mode label active */
+.claudian-container .claudian-mode-label.active {
+  color: #373734 !important;
+}
+
+/* Thinking label */
+.claudian-container .claudian-thinking-label {
+  color: var(--text-muted) !important;
+}
+
+/* ── AskUser-vraag: lange optie-teksten niet de rest uit beeld laten duwen ──
+   Het vraag-blok had geen hoogtelimiet → bij lange opties groeide het
+   ongelimiteerd. Begrens het en scroll intern, zodat de tabbalk (Submit) en
+   de rest van het paneel zichtbaar blijven. */
+.claudian-container .claudian-ask-question-inline {
+  max-height: 45vh;
+  overflow-y: auto;
+}
+/* ── Invoerveld: wit vlak zoals de bubbel (2026-09-29, Claudian v2.3.9) ──
+   Het veld had geen achtergrond, dus je zag de doorschijnende macOS-kleur erdoor
+   en het vlak viel weg. Rand via de variabele, zodat de side-chat-kleur blijft werken. */
+body.theme-light .claudian-container .claudian-input-wrapper:not(.claudian-input-side-chat-preview) {
+  /* 2026-10-21 (UI 2026, 4C): geen rand (net als de tab), schaduw valt alleen onder het veld, radius 16 */
+  --claudian-input-wrapper-border-color: transparent;
+  --claudian-input-wrapper-box-shadow: var(--elev-m);
+  background: #ffffff !important;
+  border-radius: 16px !important;
+  transition: box-shadow 120ms ease;
+}
+body.theme-light .claudian-container .claudian-input-wrapper:not(.claudian-input-side-chat-preview):focus-within {
+  --claudian-input-wrapper-border-color: transparent;
+  --claudian-input-wrapper-box-shadow: var(--elev-m);
+}
+body.theme-dark .claudian-container .claudian-input-wrapper {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border-radius: 16px !important;
+}
+
+/* ── Tabs als echte tabjes (2026-09-29, Claudian v2.3.9) ──
+   Claudian toont een tab als nummer; dubbelklik = titel (onthouden per tab).
+   Titel standaard + spinner op de actieve tab: plugin claudian-tab-titles
+   (los van Claudian, dus update-proof). CSS alleen kan die twee niet.
+   Vorm: tabs staan op een lijn. Inactief = licht gevuld tabje met eigen rand,
+   actief = wit tabje dat de lijn onderbreekt (open naar de inhoud).
+   Status = badge rechts, binnen de rand van de eigen tab.
+   Geen fade bij klikken: Claudian bouwt de tabs bij elke wijziging opnieuw op,
+   dus een CSS-transition heeft geen oud element om vanaf te animeren. */
+/* De balk zit vast op het invoerveld: de bovenrand van het veld IS de lijn.
+   Actieve tab (wit) ligt over die rand heen, zodat tab en veld één vlak zijn. */
+/* DOM (v2.3.9): .claudian-input-footer > .claudian-view-input-nav-row (tabs)
+   + .claudian-active-input-slot > ... > .claudian-input-wrapper (het veld). */
+.claudian-input-footer > .claudian-view-input-nav-row {
+  position: relative;
+  z-index: 1; /* boven de rand van het invoerveld */
+  padding-bottom: 0 !important;
+}
+.claudian-input-footer > .claudian-view-input-nav-row + .claudian-active-input-slot {
+  margin-top: -1px;
+}
+/* Linksboven alleen recht als de EERSTE tab actief is (die loopt dan het veld in); anders rond */
+/* Bij 1 tab verbergt Claudian de tabbalk (.claudian-hidden): dan gewoon rond */
+body .claudian-input-footer:has(.claudian-tab-badges:not(.claudian-hidden) > .claudian-tab-badge-active:first-child) .claudian-input-wrapper {
+  border-top-left-radius: 0 !important;
+}
+.claudian-input-nav-content {
+  align-items: flex-end !important;
+  justify-content: flex-start !important; /* geen space-between: + plakt aan de tabs */
+}
+.claudian-tab-bar-container {
+  align-items: flex-end !important;
+  align-self: stretch;
+  gap: 4px !important;
+}
+.claudian-tab-badges {
+  flex: 0 1 auto !important;
+  align-items: flex-end !important;
+  align-self: stretch;
+  gap: 2px !important;
+  padding: 3px 10px 0 0; /* 10px rechts: ruimte voor het bochtje van de laatste tab */
+}
+/* Potlood + geschiedenis: los van de rand, eigen lucht eronder */
+.claudian-input-nav-actions {
+  gap: 2px !important;
+  margin-bottom: 3px !important; /* icoon-midden = midden van de tabtekst (15px boven de lijn) */
+  margin-left: auto !important; /* geschiedenis + nieuwe chat helemaal rechts */
+  align-items: center;
+}
+.claudian-input-nav-actions .claudian-history-container {
+  display: flex;
+  align-items: center;
+}
+.claudian-input-nav-actions button.claudian-input-nav-btn {
+  width: 28px !important;
+  height: 24px !important;
+  min-width: 28px !important;
+  min-height: 24px !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  color: var(--text-muted);
+  transition: background 120ms ease, color 120ms ease;
+}
+.claudian-input-nav-actions button.claudian-input-nav-btn svg {
+  width: 18px !important; /* Obsidian-default --icon-m */
+  height: 18px !important;
+}
+/* Kale plus (nieuwe tab) oogt dunner dan potlood/klok: 20px houdt 'm even zwaar */
+.claudian-input-nav-content > button.itab-new svg {
+  width: 20px !important;
+  height: 20px !important;
+}
+.claudian-input-nav-actions button.claudian-input-nav-btn:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: var(--text-normal);
+}
+.claudian-input-nav-actions button.claudian-input-nav-btn:active {
+  background: rgba(0, 0, 0, 0.09);
+}
+body.theme-dark .claudian-input-nav-actions button.claudian-input-nav-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+/* Plus (nieuwe tab): kaal icoon direct achter de laatste tab (plugin verhuist 'm) */
+.claudian-input-nav-content > button.itab-new {
+  flex: 0 0 auto;
+  width: 28px !important;
+  min-width: 28px !important;
+  height: 24px !important;
+  min-height: 24px !important;
+  margin-bottom: 3px !important;
+  margin-left: 0;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  color: var(--text-muted);
+  transition: background 120ms ease, color 120ms ease;
+}
+.claudian-input-nav-content > button.itab-new:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: var(--text-normal);
+}
+.claudian-input-nav-content > button.itab-new:active {
+  background: rgba(0, 0, 0, 0.09);
+}
+body.theme-dark .claudian-input-nav-content > button.itab-new:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+/* Inactieve tab */
+.claudian-tab-badges > .claudian-tab-badge.claudian-tab-badge {
+  position: relative;
+  flex: 0 0 auto;
+  width: auto;
+  min-width: 28px;
+  max-width: none;
+  /* 2026-10-21 (UI 2026, 1B): inactief = alleen tekst, geen vlak en geen rand */
+  height: 30px;
+  padding: 0 9px;
+  gap: 6px;
+  justify-content: center;
+  isolation: isolate; /* hover-vlakje (::before, z-index -1) blijft achter de tekst */
+  border: none;
+  border-radius: 10px 10px 0 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 500;
+  transition: color 120ms ease;
+}
+.claudian-tab-badges > .claudian-tab-badge.claudian-tab-badge-expanded {
+  justify-content: flex-start;
+}
+/* Hover zoals Chrome: een los rond vlakje binnen de tab, raakt het veld niet */
+.claudian-tab-badges > .claudian-tab-badge.itab:not(.claudian-tab-badge-active)::before {
+  content: "";
+  position: absolute;
+  inset: 3px 2px 4px;
+  z-index: -1;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.055);
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+.claudian-tab-badges > .claudian-tab-badge:not(.claudian-tab-badge-active):hover {
+  color: var(--text-normal);
+}
+.claudian-tab-badges > .claudian-tab-badge.itab:not(.claudian-tab-badge-active):hover::before {
+  opacity: 1;
+}
+.claudian-tab-badges > .claudian-tab-badge.itab:not(.claudian-tab-badge-active):active::before {
+  background: rgba(0, 0, 0, 0.09);
+}
+body.theme-dark .claudian-tab-badges > .claudian-tab-badge.itab:not(.claudian-tab-badge-active)::before {
+  background: rgba(255, 255, 255, 0.08);
+}
+/* Actieve tab: wit, geen lijn, loopt via margin-top:-1px van het veld naadloos het veld in */
+.claudian-tab-badges > .claudian-tab-badge.claudian-tab-badge-active {
+  --itab-active-bg: #ffffff;
+  z-index: 1;
+  height: 31px;
+  background: var(--itab-active-bg);
+  border: none;
+  color: var(--text-normal);
+  box-shadow: none;
+  cursor: default;
+}
+body.theme-dark .claudian-tab-badges > .claudian-tab-badge.claudian-tab-badge-active {
+  --itab-active-bg: var(--background-primary);
+}
+/* Chrome-bochtjes onderaan de actieve tab (schaduw-techniek): een leeg vakje met één ronde hoek,
+   de schaduw in de tabkleur vult alleen wat buiten de bocht valt. Alleen op .itab: zonder plugin
+   gebruikt de status-fallback ::after. */
+.claudian-tab-badges > .claudian-tab-badge.itab.claudian-tab-badge-active::before,
+.claudian-tab-badges > .claudian-tab-badge.itab.claudian-tab-badge-active::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  width: 10px;
+  height: 10px;
+  pointer-events: none;
+}
+.claudian-tab-badges > .claudian-tab-badge.itab.claudian-tab-badge-active::before {
+  left: -10px;
+  border-bottom-right-radius: 10px;
+  box-shadow: 4px 4px 0 4px var(--itab-active-bg);
+}
+.claudian-tab-badges > .claudian-tab-badge.itab.claudian-tab-badge-active::after {
+  right: -10px;
+  border-bottom-left-radius: 10px;
+  box-shadow: -4px 4px 0 4px var(--itab-active-bg);
+}
+/* Eerste tab: links begint het veld zelf, geen bochtje */
+.claudian-tab-badges > .claudian-tab-badge.itab.claudian-tab-badge-active:first-child::before {
+  display: none;
+}
+/* ── Titel + rechter vak (plugin claudian-tab-titles zet .itab + spans) ──
+   Het vak rechts toont de status; bij hover op een sluitbare tab het kruisje.
+   Zonder plugin valt de status terug op ::after (zelfde vormen). */
+.claudian-tab-badges > .claudian-tab-badge.itab {
+  overflow: visible; /* Claudian zet overflow:hidden op de tab, dat knipt de bochtjes weg. De titel kort zichzelf in. */
+  flex: 0 1 auto;
+  min-width: 56px;
+  padding: 0 4px 0 12px;
+  gap: 4px;
+  justify-content: flex-start;
+}
+.claudian-tab-badges > .claudian-tab-badge.itab.claudian-tab-badge-active {
+  flex-shrink: 0.25; /* actieve tab houdt z'n naam het langst */
+}
+.itab .itab-title {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.itab .itab-slot {
+  position: relative;
+  flex: 0 0 18px;
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+/* Kruisje: alleen bij hover, neemt de plek van de status in */
+.itab .itab-close {
+  position: absolute;
+  inset: 0 0 0 auto;
+  width: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  color: var(--text-muted);
+  opacity: 0;
+  pointer-events: none;
+  cursor: pointer;
+  transition: opacity 100ms ease, background 100ms ease, color 100ms ease;
+}
+.itab.itab-closable:hover .itab-close {
+  opacity: 1;
+  pointer-events: auto;
+}
+.itab.itab-closable:hover .itab-status {
+  opacity: 0;
+}
+.itab .itab-close:hover {
+  background: rgba(0, 0, 0, 0.08);
+  color: var(--text-normal);
+}
+.itab .itab-close:active {
+  background: rgba(0, 0, 0, 0.14);
+}
+body.theme-dark .itab .itab-close:hover {
+  background: rgba(255, 255, 255, 0.10);
+}
+.itab .itab-status {
+  transition: opacity 100ms ease;
+}
+/* Status-vormen: zelfde voor .itab-status (plugin) en ::after (fallback) */
+.claudian-tab-badges > .claudian-tab-badge-review:not(.itab)::after,
+.claudian-tab-badges > .claudian-tab-badge-review-error:not(.itab)::after,
+.claudian-tab-badges > .claudian-tab-badge-action-required:not(.itab)::after,
+.claudian-tab-badges > .claudian-tab-badge-streaming:not(.itab)::after,
+.itab.claudian-tab-badge-review .itab-status,
+.itab.claudian-tab-badge-review-error .itab-status,
+.itab.claudian-tab-badge-action-required .itab-status,
+.itab.claudian-tab-badge-streaming .itab-status,
+.itab.itab-working .itab-status {
+  content: "";
+  display: block;
+  flex: 0 0 auto;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  box-sizing: border-box;
+}
+.claudian-tab-badges > .claudian-tab-badge-review,
+.claudian-tab-badges > .claudian-tab-badge-review-error,
+.claudian-tab-badges > .claudian-tab-badge-action-required {
+  color: var(--text-normal);
+}
+/* Klaar, nog niet bekeken: rode notificatie-stip */
+.claudian-tab-badges > .claudian-tab-badge-review:not(.itab)::after,
+.itab.claudian-tab-badge-review .itab-status {
+  background: var(--color-red);
+}
+/* Gestopt met een fout: rood rondje met uitroepteken */
+.claudian-tab-badges > .claudian-tab-badge-review-error:not(.itab)::after,
+.itab.claudian-tab-badge-review-error .itab-status {
+  width: 13px;
+  height: 13px;
+  background: var(--color-red);
+  color: #ffffff;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 13px;
+  text-align: center;
+}
+.claudian-tab-badges > .claudian-tab-badge-review-error:not(.itab)::after { content: "!"; }
+.itab.claudian-tab-badge-review-error .itab-status::before { content: "!"; }
+/* Wacht op jou (vraag/permissie): oranje met zachte puls */
+.claudian-tab-badges > .claudian-tab-badge-action-required:not(.itab)::after,
+.itab.claudian-tab-badge-action-required .itab-status {
+  background: var(--color-orange);
+  animation: claudian-tab-pulse 1.6s ease-out infinite;
+}
+/* Bezig: klein draaiend ringetje (.itab-working = actieve tab die bezig is) */
+.claudian-tab-badges > .claudian-tab-badge-streaming:not(.itab)::after,
+.itab.claudian-tab-badge-streaming .itab-status,
+.itab.itab-working .itab-status {
+  width: 9px;
+  height: 9px;
+  border: 1.5px solid currentColor;
+  border-top-color: transparent;
+  background: none;
+  opacity: 0.7;
+  animation: claudian-tab-spin 0.8s linear infinite;
+}
+/* Bezig + hover: de spinner blijft zichtbaar en schuift naast het kruisje.
+   Het vak groeit van 18px naar 34px, spinner glijdt naar links, kruisje blijft rechts. */
+.itab.itab-closable.claudian-tab-badge-streaming .itab-slot,
+.itab.itab-closable.itab-working .itab-slot {
+  flex: 0 0 auto;
+  transition: width 150ms ease;
+}
+.itab.itab-closable.claudian-tab-badge-streaming:hover .itab-slot,
+.itab.itab-closable.itab-working:hover .itab-slot {
+  width: 34px;
+}
+.itab.claudian-tab-badge-streaming .itab-status,
+.itab.itab-working .itab-status {
+  position: absolute;
+  top: 50%;
+  left: 4.5px;
+  margin-top: -4.5px;
+  transition: left 150ms ease, opacity 100ms ease;
+}
+.itab.itab-closable.claudian-tab-badge-streaming:hover .itab-status,
+.itab.itab-closable.itab-working:hover .itab-status {
+  left: 3px;
+  opacity: 0.7;
+}
+@keyframes claudian-tab-spin { to { transform: rotate(360deg); } }
+@keyframes claudian-tab-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(var(--color-orange-rgb), 0.55); }
+  70% { box-shadow: 0 0 0 5px rgba(var(--color-orange-rgb), 0); }
+  100% { box-shadow: 0 0 0 0 rgba(var(--color-orange-rgb), 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .claudian-tab-badges > .claudian-tab-badge::after,
+  .itab .itab-status { animation: none; }
+}
+
+/* ── Popup-schaduwen niet afknippen (2026-09-29) ──
+   Slash-/@-menu, sessies-menu en model-menu hangen boven het invoerveld, maar de
+   voorouders (.claudian-container, -chat-panel, -tab-content, -messages-wrapper)
+   staan op overflow: hidden. clip + overflow-clip-margin knipt pas 32px buiten
+   de rand, dus de schaduw blijft heel. */
+.claudian-container,
+.claudian-chat-panel,
+.claudian-tab-content,
+.claudian-messages-wrapper {
+  overflow: clip !important;
+  overflow-clip-margin: 32px;
+}
+.claudian-input-container,
+.claudian-input-footer,
+.claudian-active-input-slot {
+  overflow: visible !important;
+}
+
+/* ── Queued-rij onder het veld (2026-09-30) ──
+   Stond tussen tabs en veld en brak zo de tab-naar-veld-lijn. Nu: onder het veld,
+   als lichte strip. Het ⌙-teken wijst dan omhoog naar het veld. `display` blijft
+   van Claudian (die zet 'm aan/uit), wij verplaatsen en kleuren alleen. */
+.claudian-input-container {
+  display: flex;
+  flex-direction: column;
+}
+.claudian-input-container > .claudian-input-queue-row {
+  order: 3;
+  margin: 6px 0 0;
+  padding: 5px 6px 5px 12px;
+  gap: 10px;
+  border-radius: 8px;
+  background: var(--background-modifier-hover);
+  color: var(--text-muted);
+}
+.claudian-queue-indicator-text {
+  color: var(--text-normal);
+  opacity: 0.75;
+}
+.claudian-queue-indicator-actions {
+  gap: 2px !important;
+}
+.claudian-queue-indicator-actions button.claudian-queue-indicator-action {
+  padding: 2px 8px !important;
+  border-radius: 6px !important;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-normal) !important;
+  background: var(--background-modifier-border) !important;
+}
+.claudian-queue-indicator-actions button.claudian-queue-indicator-action:is(:hover, :focus-visible) {
+  background: var(--background-modifier-border-hover) !important;
+}
+.claudian-queue-indicator-actions button.claudian-queue-indicator-icon-action {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px !important;
+}
+.claudian-queue-indicator-actions button.claudian-queue-indicator-icon-action:is(:hover, :focus-visible) {
+  background: var(--background-modifier-border) !important;
+}
+/* "Steer Now" is geen echt Engels: label vervangen via CSS, in het Engels zodat het klopt met "Queued" (tekst zit in Claudian's JS,
+   dus update-proof houden we 'm daar niet). Wat de knop doet: het gequeuede bericht nu
+   in de lopende beurt sturen, in plaats van wachten tot die klaar is. */
+.claudian-queue-indicator-actions button.claudian-queue-indicator-action {
+  font-size: 0 !important;
+}
+.claudian-queue-indicator-actions button.claudian-queue-indicator-action::after {
+  content: "Send now";
+  font-size: 12px;
+}
+.claudian-queue-indicator-actions button.claudian-queue-indicator-action[disabled]::after {
+  content: "Sending...";
+}
+
+/* Effort-keuze: niet meer openklappen op hover, alleen op klik (main.js > patchEffortClick). */
+body .claudian-thinking-gears:hover .claudian-thinking-options {
+  opacity: 0;
+  visibility: hidden;
+}
+body .claudian-thinking-gears.itab-open .claudian-thinking-options {
+  opacity: 1;
+  visibility: visible;
+}
+/* Effort-menu boven de tabs: de tabbalk heeft z-index 1, dus het invoerveld (waar het menu in zit)
+   gaat erboven zolang een menu open is. */
+.claudian-active-input-slot:has(.claudian-thinking-gears.itab-open, .claudian-model-selector:hover) {
+  position: relative;
+  z-index: 2;
+}
+/* Thumbnail in het Image-chipje (main.js > thumbs) */
+.claudian-context-chip .itab-thumb {
+  width: 28px;
+  height: 28px;
+  object-fit: cover;
+  border-radius: 6px;
+  margin-right: 6px;
+  flex-shrink: 0;
+}
+.claudian-context-chip.itab-has-thumb .claudian-context-chip-main {
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+}
+/* Image-chipje 1,5x zo hoog als Claudians standaard-chip (24px -> 36px) */
+.claudian-context-chip.itab-has-thumb {
+  height: 36px;
+  border-radius: 10px;
+  padding-left: 4px;
+}
+
+/* ── Checkboxes in de chat binnen de bubbel houden (2026-10-16) ──
+   Obsidian trekt een task-checkbox naar links met
+   margin-inline-start: calc(var(--checkbox-size) * -1.5) (~27px), en rekent
+   op de standaard lijst-inspring var(--list-indent) (2.25em). Claudian zet
+   lijsten op padding-inline-start: 20px, dus de checkbox viel ~7px buiten
+   het antwoord. Takenlijsten krijgen hier weer Obsidian's eigen inspring. */
+.claudian-message-content ul.contains-task-list,
+.claudian-message-content ul:has(> li.task-list-item) {
+  padding-inline-start: var(--list-indent, 2.25em) !important;
+}
+/* Tabellen in de chat: Claudian zet overflow-wrap: anywhere op cellen. Daardoor mag de browser
+   een kolom smaller maken dan het langste woord ("reb uy"). break-word breekt alleen als een
+   woord echt niet past. */
+body .claudian-message-content th,
+body .claudian-message-content td {
+  overflow-wrap: break-word;
+}
+
+/* ══ Claudian UI 2026 (2026-10-21) ══
+   Keuzes 1B · 2C · 3C · 4C · 5B · 6B uit ~/Projects/todo/claudian-ui-2026.html.
+   Maten = Tailwind-standaard (text-xs 12/16, 4px-raster, rounded-2xl 16).
+   Schaduwen = Josh Comeau "Designing beautiful shadows": één lichtbron recht van boven,
+   gelaagd, kleur uit de warme achtergrond i.p.v. zwart. y = blur, dus niets valt boven een vlak. */
+.claudian-container {
+  --shadow-color: 35deg 14% 38%;
+  --elev-s: 0 1px 1px hsl(var(--shadow-color) / 0.14), 0 2px 2px hsl(var(--shadow-color) / 0.08);
+  --elev-m: 0 1px 1px hsl(var(--shadow-color) / 0.08), 0 2px 2px hsl(var(--shadow-color) / 0.08),
+    0 4px 4px hsl(var(--shadow-color) / 0.08), 0 8px 8px hsl(var(--shadow-color) / 0.07);
+  --elev-l: 0 1px 1px hsl(var(--shadow-color) / 0.07), 0 2px 2px hsl(var(--shadow-color) / 0.07),
+    0 4px 4px hsl(var(--shadow-color) / 0.07), 0 8px 8px hsl(var(--shadow-color) / 0.07),
+    0 16px 16px hsl(var(--shadow-color) / 0.07);
+}
+body.theme-dark .claudian-container {
+  --shadow-color: 0deg 0% 0%;
+}
+/* 2C: tekst 15/24, 24px tussen beurten */
+.claudian-container .claudian-message-content {
+  font-size: 15px;
+  line-height: 1.6;
+}
+.claudian-container .claudian-messages {
+  gap: 24px;
+  padding-bottom: 24px; /* lucht tussen het laatste bericht en de tabs */
+}
+.claudian-container .claudian-message-assistant {
+  padding-block: 0;
+}
+/* "Worked for 00:51": klein en licht, zodat 'ie niet met je antwoord meeschreeuwt */
+.claudian-container button.claudian-work-header {
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 500;
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+.claudian-container button.claudian-work-header:is(:hover, :focus-visible) {
+  color: var(--text-muted);
+}
+/* 4C: invoerveld 15px met meer lucht, toolbar-knoppen met hover-vlakje */
+.claudian-container .claudian-input-wrapper .claudian-composer-editor {
+  --claudian-composer-padding-top: 14px;
+  --claudian-composer-padding-inline: 16px;
+  --claudian-composer-padding-bottom: 4px;
+  font-size: 15px;
+}
+.claudian-container .claudian-input-toolbar {
+  padding: 6px 8px 8px;
+}
+.claudian-container .claudian-input-toolbar button.claudian-toolbar-chip {
+  padding: 0 8px;
+  border-radius: 8px;
+  font-weight: 500;
+  transition: background 120ms ease, color 120ms ease;
+}
+.claudian-container .claudian-input-toolbar button.claudian-toolbar-chip:is(:hover, [aria-expanded=true]) {
+  background: rgba(0, 0, 0, 0.05);
+}
+body.theme-dark .claudian-container .claudian-input-toolbar button.claudian-toolbar-chip:is(:hover, [aria-expanded=true]) {
+  background: rgba(255, 255, 255, 0.08);
+}
+/* 5B: scroll-pijltjes alleen als je met de muis boven de berichten bent */
+:not(:hover) > .claudian-nav-sidebar.visible {
+  opacity: 0;
+  pointer-events: none;
+}
+/* 5B: de notitie onder het veld als klein chipje (klik = @-menu, zie main.js > patchLinkedChip).
+   Zelfde selector-zwaarte als Claudian's eigen regel + .claudian-container erbij, voor ALLE toestanden:
+   anders zet Claudian's hover-regel padding 0 / height 20px terug en verspringt het chipje. */
+.claudian-container .claudian-input-info-linked > button.claudian-input-info-linked-main,
+.claudian-container .claudian-input-info-linked > button.claudian-input-info-linked-main:is(:hover, :focus, :focus-visible, :active) {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 22px;
+  padding: 0 8px;
+  border: none;
+  border-radius: 999px;
+  background: transparent; /* geen vlak tot je erover gaat, anders lijkt 'ie al gehoverd */
+  box-shadow: none;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+}
+.claudian-container .claudian-input-info-linked > button.claudian-input-info-linked-main:is(:hover, :focus-visible) {
+  background: transparent; /* het vlak zit op de hele chip, zie hieronder */
+  color: var(--text-normal);
+}
+/* De chip = notitie + kruisje samen in één pil; het vlak verschijnt pas bij hover */
+.claudian-container .claudian-input-info-linked {
+  height: 22px;
+  gap: 0 !important;
+  border-radius: 999px;
+  transition: background 120ms ease;
+}
+.claudian-container .claudian-input-info-linked:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+body.theme-dark .claudian-container .claudian-input-info-linked:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+.claudian-container .claudian-input-info-linked:has(> .claudian-input-info-linked-remove) > button.claudian-input-info-linked-main {
+  padding-right: 4px;
+}
+/* Icoon van het chipje op één lijn met de tekst in het veld (16px): rij 8px + chip-padding 8px */
+.claudian-container .claudian-input-info-row {
+  padding-left: 8px;
+}
+/* 6B: menu's = hoogste laag. Wit, radius 12, grote schaduw + een haarfijne ring zodat ze ook boven wit loskomen */
+body.theme-light .claudian-composer-dropdown,
+body.theme-light .claudian-toolbar-popover,
+body.theme-light .claudian-resume-dropdown,
+body.theme-light .claudian-nav-dropup-menu,
+body.theme-light .claudian-nav-toc-popover,
+body.theme-light .claudian-session-metadata-popover {
+  background: #ffffff !important;
+  background-image: none !important;
+}
+.claudian-composer-dropdown,
+.claudian-toolbar-popover,
+.claudian-resume-dropdown,
+.claudian-nav-dropup-menu,
+.claudian-nav-toc-popover,
+.claudian-session-metadata-popover {
+  border: none !important;
+  border-radius: 12px !important;
+  box-shadow: 0 0 0 1px hsl(var(--shadow-color, 0deg 0% 0%) / 0.08), var(--elev-l) !important;
+}
+/* Fade boven en onder in de berichten (2026-10-21): tekst loopt zacht weg in plaats van hard afgekapt.
+   Scroll-gestuurd: bovenaan je gesprek geen fade boven, onderaan geen fade onder, en niet scrollbaar = geen fade.
+   @property maakt de lengtes animeerbaar; animation-timeline koppelt ze aan de scrollpositie. */
+@property --claudian-fade-top { syntax: "<length>"; inherits: false; initial-value: 0px; }
+@property --claudian-fade-bottom { syntax: "<length>"; inherits: false; initial-value: 0px; }
+@keyframes claudian-fade-top { from { --claudian-fade-top: 0px; } to { --claudian-fade-top: 24px; } }
+@keyframes claudian-fade-bottom { from { --claudian-fade-bottom: 32px; } to { --claudian-fade-bottom: 0px; } }
+.claudian-container .claudian-messages {
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 var(--claudian-fade-top), #000 calc(100% - var(--claudian-fade-bottom)), transparent 100%);
+  mask-image: linear-gradient(to bottom, transparent 0, #000 var(--claudian-fade-top), #000 calc(100% - var(--claudian-fade-bottom)), transparent 100%);
+  animation: claudian-fade-top linear both, claudian-fade-bottom linear both;
+  animation-timeline: scroll(self), scroll(self);
+  animation-range: 0px 48px, calc(100% - 48px) 100%;
+}
+/* "Task notification" is een meta-regel, geen eigen beurt (2026-10-21): de 24px tussen beurten
+   plus Claudian's 10px eronder gaf er aan twee kanten een groot gat omheen. Nu 12px erboven en
+   12px eronder als de notificatie een eigen bericht is, en 4px als er tekst in hetzelfde bericht volgt. */
+.claudian-container .claudian-task-notification {
+  margin-bottom: 4px;
+}
+.claudian-container .claudian-messages > :has(.claudian-task-notification) {
+  margin-top: -12px;
+}
+.claudian-container .claudian-messages > :has(.claudian-task-notification:last-child) + * {
+  margin-top: -12px;
+}
+.claudian-container .claudian-task-notification + * {
+  margin-top: 0;
+}
+/* Kruisje bij het notitie-chipje (main.js > syncLinkedChip): alleen zichtbaar als je over het chipje gaat */
+.claudian-container .claudian-input-info-linked > button.itab-link-remove {
+  opacity: 0;
+  margin-right: 4px !important;
+  border-radius: 50% !important;
+  transition: opacity 120ms ease, background 120ms ease;
+}
+.claudian-container .claudian-input-info-linked > button.itab-link-remove:hover {
+  background: rgba(0, 0, 0, 0.08) !important;
+}
+.claudian-container .claudian-input-info-linked:hover > button.itab-link-remove,
+.claudian-container .claudian-input-info-linked > button.itab-link-remove:focus-visible {
+  opacity: 1;
+}
+/* Leeg chipje na loskoppelen: lichter dan een echte notitie */
+.claudian-container .claudian-input-info-linked > button.itab-link-empty {
+  color: var(--text-faint);
+}
+/* Microfoonknop (2026-10-28): zelfde maat en hover als de toolbar-chips. Opnemen = accentkleur
+   die zacht pulseert, omzetten = draaiend loader-icoon. */
+.claudian-container .claudian-input-toolbar button.itab-mic {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+}
+.claudian-container .claudian-input-toolbar button.itab-mic svg {
+  width: 15px;
+  height: 15px;
+}
+.claudian-container .claudian-input-toolbar button.itab-mic:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: var(--text-normal);
+}
+body.theme-dark .claudian-container .claudian-input-toolbar button.itab-mic:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+.claudian-container .claudian-input-toolbar button.itab-mic.itab-mic-rec {
+  color: var(--text-on-accent);
+  background: var(--interactive-accent);
+  animation: itab-mic-pulse 1.4s ease-in-out infinite;
+}
+.claudian-container .claudian-input-toolbar button.itab-mic.itab-mic-busy svg {
+  animation: itab-mic-spin 0.9s linear infinite;
+}
+@keyframes itab-mic-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+@keyframes itab-mic-spin {
+  to { transform: rotate(360deg); }
+}
